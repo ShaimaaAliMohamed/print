@@ -7,8 +7,6 @@ class handler(BaseHTTPRequestHandler):
         body = self.rfile.read(content_length)
         data = json.loads(body.decode('utf-8'))
 
-        print("✅ API was hit, input:", data)
-
         response = {"status": "I am working!"}
 
         self.send_response(200)
