@@ -1,26 +1,31 @@
-from flask import Flask, request, jsonify
-import threading
-import gradio as gr
-from flask_cors import CORS
+# File: api/relay.py
 
-app = Flask(__name__)
-CORS(app)
+from http.server import BaseHTTPRequestHandler
+import json
+import urllib.request
 
-@app.route('/analyze', methods=['POST'])
-def analyze():
-    print("I am working!")  # Print to logs
-    return jsonify({"status": "I am working!"})
+class handler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        content_length = int(self.headers['Content-Length'])
+        body = self.rfile.read(content_length)
+        data = json.loads(body.decode('utf-8'))
 
-# Run Flask in a separate thread so Gradio doesn't block
-def run_flask():
-    app.run(host="0.0.0.0", port=7860)
+        # Forward to Hugging Face Space
+        req = urllib.request.Request(
+            "https://shaimaaalimohamed-print.hf.space/analyze",
+            data=json.dumps(data).encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
 
-# Just a dummy Gradio UI so Spaces runs
-def dummy_ui():
-    return "Flask is running in background."
-
-iface = gr.Interface(fn=dummy_ui, inputs=[], outputs="text")
-
-if __name__ == '__main__':
-    threading.Thread(target=run_flask).start()
-    iface.launch()
+        try:
+            with urllib.request.urlopen(req) as f:
+                result = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(result)
+        except Exception as e:
+            self.send_response(500)
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
